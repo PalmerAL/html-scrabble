@@ -30,12 +30,16 @@ DB.prototype.set = function(key, object) {
     this.dirty.set(key, icebox.freeze(object));
 }
 
+DB.prototype.rm = function(key) {
+    this.dirty.rm(key)
+}
+
 DB.prototype.all = function() {
     var retval = [];
     this.dirty.forEach(function(key, value) {
         retval.push(value);
     });
-    return retval;
+    return retval.filter(v => v !== undefined);
 }
 
 DB.prototype.snapshot = function() {

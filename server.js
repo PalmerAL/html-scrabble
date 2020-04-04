@@ -154,6 +154,10 @@ Game.prototype.save = function(key) {
     db.set(this.key, this);
 }
 
+Game.prototype.delete = function(key) {
+    db.rm(this.key, this);
+}
+
 Game.load = function(key) {
     if (!this.games) {
         this.games = {};
@@ -624,6 +628,11 @@ app.get("/game/:gameKey", gameHandler(function (game, req, res, next) {
         }
     });
 }));
+
+app.get("/deleteGame/:gameKey", gameHandler(function (game, req, res, next) {
+    game.delete()
+    res.redirect("/games.html")
+}))
 
 app.post("/game/:gameKey", playerHandler(function(player, game, req, res) {
     var body = icebox.thaw(req.body);

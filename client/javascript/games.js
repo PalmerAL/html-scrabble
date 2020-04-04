@@ -14,7 +14,11 @@ function populateGamesList() {
                     return TD(null,
                         A({ href: '/game/' + game.key + '/' + player.key },
                             player.name))
-                }))
+                }),
+                                TD(null,
+                        A({ href: '/deleteGame/' + game.key},
+                            "Delete"))
+                            )
         }));
     });
 }
