@@ -6,7 +6,6 @@ var util = require('util');
 var os = require('os');
 var fs = require('fs');
 var io = require('socket.io');
-var nodemailer = require('nodemailer');
 var express = require('express');
 var methodOverride = require('method-override');
 var bodyParser = require('body-parser');
@@ -72,8 +71,6 @@ console.log('config', config);
 
 // //////////////////////////////////////////////////////////////////////
 
-var smtp = nodemailer.createTransport('SMTP', config.mailTransportConfig);
-
 var app = express();
 var server = app.listen(config.port)
 var io = io.listen(server);
@@ -106,21 +103,6 @@ function makeKey() {
     return crypto.randomBytes(8).toString('hex');
 }
 
-// Email subject formatting helper ///////////////////////////////////////
-
-function joinProse(array)
-{
-    var length = array.length;
-    switch (length) {
-    case 0:
-        return "";
-    case 1:
-        return array[0];
-    default:
-        return _.reduce(array.slice(1, length - 1), function (word, accu) { return word + ", " + accu }, array[0]) + " and " + array[length - 1];
-    }
-}
-
 // Game //////////////////////////////////////////////////////////////////
 
 function Game() {
@@ -151,11 +133,6 @@ Game.create = function(language, players) {
     game.whosTurn = 0;
     game.passes = 0;
     game.save();
-    game.players.forEach(function (player) {
-        game.sendInvitation(player,
-                            'You have been invited to play Scrabble with '
-                            + joinProse(game.otherPlayers(player)));
-    });
     return game;
 }
 
@@ -171,26 +148,6 @@ Game.prototype.makeLink = function(player)
         url += "/" + player.key;
     }
     return url;
-}
-
-Game.prototype.sendInvitation = function(player, subject)
-{
-    try {
-        console.log('sendInvitation to', player.name, 'subject', subject);
-        smtp.sendMail({ from: config.mailSender,
-                        to: [ player.email ],
-                        subject: subject,
-                        text: 'Make your move:\n\n' + this.makeLink(player),
-                        html: 'Click <a href="' + this.makeLink(player) + '">here</a> to make your move.' },
-                      function (err) {
-                          if (err) {
-                              console.log('sending mail failed', err);
-                          }
-                      });
-    }
-    catch (e) {
-        console.log('cannot send mail:', e);
-    }
 }
 
 Game.prototype.save = function(key) {
@@ -481,7 +438,6 @@ Game.prototype.createFollowonGame = function(startPlayer) {
     for (var i = 0; i < playerCount; i++) {
         var oldPlayer = oldGame.players[(i + startPlayer.index) % playerCount];
         newPlayers.push({ name: oldPlayer.name,
-                          email: oldPlayer.email,
                           key: oldPlayer.key });
     }
     var newGame = Game.create(oldGame.language, newPlayers);
@@ -586,26 +542,10 @@ app.get("/games",
                          return { key: game.key,
                                   players: game.players.map(function(player) {
                                       return { name: player.name,
-                                               email: player.email,
                                                key: player.key,
                                                hasTurn: player == game.players[game.whosTurn]};
                                   })};
                      }));
-});
-
-app.post("/send-game-reminders", function (req, res) {
-    var count = 0;
-    db.all().map(function (game) {
-        game = db.get(game.key);
-        if (!game.endMessage) {
-            count = count + 1;
-            var player = game.players[game.whosTurn];
-            game.sendInvitation(player,
-                                'It is your turn in your Scrabble game with '
-                                + joinProse(game.otherPlayers(player)));
-        }
-    });
-    res.send("Sent " + count + " reminder emails");
 });
 
 app.get("/game", function(req, res) {
@@ -617,11 +557,9 @@ app.post("/game", function(req, res) {
     var players = [];
     [1, 2, 3, 4].forEach(function (x) {
         var name = req.body['name' + x];
-        var email = req.body['email' + x];
-        console.log('name', name, 'email', email, 'params', req.params);
-        if (name && email) {
+        console.log('name', name, 'params', req.params);
+        if (name) {
             players.push({ name: name,
-                           email: email,
                            key: makeKey() });
         }
     });
@@ -633,7 +571,7 @@ app.post("/game", function(req, res) {
     console.log(players.length, 'players');
     var game = Game.create(req.body.language || 'German', players);
 
-    res.redirect("/game/" + game.key + "/" + game.players[0].key);
+    res.redirect("/games.html");
 });
 
 function gameHandler(handler) {
