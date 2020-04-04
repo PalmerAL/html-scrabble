@@ -569,7 +569,7 @@ app.post("/game", function(req, res) {
     }
 
     console.log(players.length, 'players');
-    var game = Game.create(req.body.language || 'German', players);
+    var game = Game.create(req.body.language || 'English', players);
 
     res.redirect("/games.html");
 });
